@@ -1,0 +1,257 @@
+﻿using UnityEngine;
+using UnityEngine.UI;
+using System.Collections;
+using System;
+
+
+public class Manager : MonoBehaviour {
+
+	private enum Move {
+		rock,
+		paper,
+		scissor
+	};
+
+	private enum State {
+		choose_move,
+		play_animation,
+		show_result,
+		idle
+	};
+
+	private enum Result {
+		win,
+		lose,
+		draw
+	}
+
+	public GameObject player;
+	public GameObject opponent;
+	public GameObject choose_your_move;
+
+	public GameObject outcome_obj;
+	public GameObject outcome_text_obj;
+
+	public Sprite rock;
+	public Sprite paper;
+	public Sprite scissor;
+
+	public Sprite star_filled;
+
+	public GameObject[] player_stars_obj;
+	public GameObject[] opponent_stars_obj;
+
+
+	private Image[] player_stars;
+	private Image[] opponent_stars;
+
+	private int player_score;
+	private Animator player_animator;
+	private int opponent_score;
+	private Animator opponent_animator;
+
+	private Move player_move;
+	private Move opponent_move;
+
+	private Result turn_result;
+	private Text outcome_text; 
+
+	private State game_state;
+
+	// Use this for initialization
+	void Start () {
+		game_state = State.choose_move;
+
+		player_animator = (Animator)player.GetComponent("Animator");
+		opponent_animator = (Animator)opponent.GetComponent("Animator");
+
+		player_stars = new Image[5];
+		opponent_stars = new Image[5];
+		for(int i = 0; i < 5; i++){
+			player_stars[i] = (Image)player_stars_obj[i].GetComponent("Image");
+			opponent_stars[i] = (Image)opponent_stars_obj[i].GetComponent("Image");
+		}
+
+		player_score = 0;
+		opponent_score = 0;
+
+		outcome_text = (Text)outcome_text_obj.GetComponent("Text");
+	}
+	
+	// Update is called once per frame
+	void Update () {
+
+		switch(game_state) {
+		case State.choose_move:
+			ChooseMove();
+			break;
+		case State.play_animation:
+			StartCoroutine(PlayAnimation());
+			game_state = State.idle;
+			break;
+		case State.show_result:
+			ShowResults();
+			break;
+		case State.idle: //don't do nothing just wait
+			break;
+		}
+
+
+
+	}
+
+
+	/* public function to be used by the buttons and set the player choice.
+	 * Parameters:
+	 * 		player_choice:
+	 * 			0 - player choose rock
+	 * 			1 - player choose paper
+	 * 			2 - player choose scissors
+	 */
+	public void PlayerChoose(int player_choice)
+	{
+		switch(player_choice){
+		case 0:
+			player_move = Move.rock;
+			break;
+		case 1:
+			player_move = Move.paper;
+			break;
+		case 2:
+			player_move = Move.scissor;
+			break;
+		}
+
+		// random opponent decision
+		Array possible_moves = Enum.GetValues(typeof(Move));
+		System.Random random = new System.Random();
+		opponent_move = (Move)possible_moves.GetValue(random.Next(possible_moves.Length));
+
+		choose_your_move.SetActive(false); // disable menu
+
+		player_animator.SetBool("hand_move", true); // start player and opponent animations
+		opponent_animator.SetBool("hand_move", true);
+
+		game_state = State.play_animation; // change game state
+	}
+
+	// Show window to choose player move
+	void ChooseMove ()
+	{
+		choose_your_move.SetActive(true);
+	}
+
+
+	// Function that changes the game state after animation
+	IEnumerator PlayAnimation ()
+	{
+		yield return new WaitForSeconds(1);
+		player_animator.SetBool("hand_move", false);
+		opponent_animator.SetBool("hand_move", false);
+		game_state = State.show_result;
+	}
+
+	// Show turn results
+	void ShowResults ()
+	{
+
+		Image player_image = (Image)player.GetComponent("Image");
+		Image opponent_image = (Image)opponent.GetComponent("Image");
+
+		switch(player_move){
+		case Move.rock:
+			player_image.sprite = rock;
+			break;
+		case Move.paper:
+			player_image.sprite = paper;
+			break;
+		case Move.scissor:
+			player_image.sprite = scissor;
+			break;
+		}
+
+		switch(opponent_move){
+		case Move.rock:
+			opponent_image.sprite = rock;
+			break;
+		case Move.paper:
+			opponent_image.sprite = paper;
+			break;
+		case Move.scissor:
+			opponent_image.sprite = scissor;
+			break;
+		}
+
+		if(player_move == Move.rock) {
+			switch(opponent_move){
+			case Move.rock:
+				turn_result = Result.draw;
+				break;
+			case Move.paper:
+				turn_result = Result.lose;
+				break;
+			case Move.scissor:
+				turn_result = Result.win;
+				break;
+			}
+		} else if(player_move == Move.paper) {
+			switch(opponent_move){
+			case Move.rock:
+				turn_result = Result.win;
+				break;
+			case Move.paper:
+				turn_result = Result.draw;
+				break;
+			case Move.scissor:
+				turn_result = Result.lose;
+				break;
+			}
+		} else { // player choose scissors
+			switch(opponent_move){
+			case Move.rock:
+				turn_result = Result.lose;
+				break;
+			case Move.paper:
+				turn_result = Result.win;
+				break;
+			case Move.scissor:
+				turn_result = Result.draw;
+				break;
+			}
+		}
+
+		StartCoroutine(ShowOutcome());
+
+		game_state = State.idle;
+	}
+
+	IEnumerator ShowOutcome(){
+
+		yield return new WaitForSeconds(0.7f);
+
+		if(turn_result == Result.lose){
+			outcome_text.text = "LOSE";
+			opponent_stars[opponent_score].sprite = star_filled;
+			opponent_score++;
+		} else if(turn_result == Result.win) {
+			outcome_text.text = "WIN";
+			player_stars[player_score].sprite = star_filled;
+			player_score++;
+		} else {
+			outcome_text.text = "DRAW";
+		}
+
+		outcome_obj.SetActive(true);
+		yield return new WaitForSeconds(1);
+		outcome_obj.SetActive(false);
+
+		// return hands to normal state
+		Image player_image = (Image)player.GetComponent("Image");
+		Image opponent_image = (Image)opponent.GetComponent("Image");
+
+		player_image.sprite = rock;
+		opponent_image.sprite = rock;
+
+		game_state = State.choose_move;
+	}
+}

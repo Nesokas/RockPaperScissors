@@ -75,7 +75,7 @@ public class Manager : MonoBehaviour {
 	private bool stop_timer;
 
 	// Use this for initialization
-	void Start () {
+	protected void Start () {
 		game_state = State.choose_move;
 
 		player_animator = (Animator)player.GetComponent("Animator");

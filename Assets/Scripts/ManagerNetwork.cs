@@ -1,19 +1,15 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class MainMenu : MonoBehaviour {
+public class ManagerNetwork : Manager {
 
 	// Use this for initialization
-	void Start () { 
+	void Start () {
+
 	}
 	
 	// Update is called once per frame
 	void Update () {
 	
-	}
-
-	public void StartOfflineGame()
-	{
-		Application.LoadLevel(1);
 	}
 }

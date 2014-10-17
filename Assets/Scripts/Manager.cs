@@ -16,7 +16,8 @@ public class Manager : MonoBehaviour {
 		choose_move,
 		play_animation,
 		show_result,
-		idle
+		idle,
+		end_game
 	};
 
 	private enum Result {
@@ -41,6 +42,12 @@ public class Manager : MonoBehaviour {
 	public GameObject[] player_stars_obj;
 	public GameObject[] opponent_stars_obj;
 
+	public GameObject canvas;
+
+	public GameObject end_game_panel;
+	public GameObject end_game_win;
+	public GameObject end_game_loose;
+
 
 	private Image[] player_stars;
 	private Image[] opponent_stars;
@@ -49,6 +56,8 @@ public class Manager : MonoBehaviour {
 	private Animator player_animator;
 	private int opponent_score;
 	private Animator opponent_animator;
+
+	private Animator canvas_animator;
 
 	private Move player_move;
 	private Move opponent_move;
@@ -64,6 +73,8 @@ public class Manager : MonoBehaviour {
 
 		player_animator = (Animator)player.GetComponent("Animator");
 		opponent_animator = (Animator)opponent.GetComponent("Animator");
+
+		canvas_animator = (Animator)canvas.GetComponent("Animator");
 
 		player_stars = new Image[5];
 		opponent_stars = new Image[5];
@@ -93,6 +104,9 @@ public class Manager : MonoBehaviour {
 			ShowResults();
 			break;
 		case State.idle: //don't do nothing just wait
+			break;
+		case State.end_game:
+			StartCoroutine(EndGame());
 			break;
 		}
 
@@ -127,7 +141,8 @@ public class Manager : MonoBehaviour {
 		System.Random random = new System.Random();
 		opponent_move = (Move)possible_moves.GetValue(random.Next(possible_moves.Length));
 
-		choose_your_move.SetActive(false); // disable menu
+		//choose_your_move.SetActive(false); // disable menu
+		canvas_animator.SetBool("Hide", true);
 
 		player_animator.SetBool("hand_move", true); // start player and opponent animations
 		opponent_animator.SetBool("hand_move", true);
@@ -138,7 +153,8 @@ public class Manager : MonoBehaviour {
 	// Show window to choose player move
 	void ChooseMove ()
 	{
-		choose_your_move.SetActive(true);
+		//choose_your_move.SetActive(true);
+		canvas_animator.SetBool("Hide", false);
 	}
 
 
@@ -252,6 +268,25 @@ public class Manager : MonoBehaviour {
 		player_image.sprite = rock;
 		opponent_image.sprite = rock;
 
-		game_state = State.choose_move;
+
+		if(player_score == 5 || opponent_score == 5)
+			game_state = State.end_game;
+		else
+			game_state = State.choose_move;
 	}
+
+	IEnumerator EndGame ()
+	{
+		end_game_panel.SetActive(true);
+		if(player_score == 5)
+			end_game_win.SetActive(true);
+		else
+			end_game_panel.SetActive(true);
+
+		game_state = State.idle;
+		yield return new WaitForSeconds(1);
+
+		Application.LoadLevel(0);
+	}
+
 }

@@ -48,6 +48,8 @@ public class Manager : MonoBehaviour {
 	public GameObject end_game_win;
 	public GameObject end_game_loose;
 
+	public GameObject timer;
+	public int turn_time;
 
 	private Image[] player_stars;
 	private Image[] opponent_stars;
@@ -66,6 +68,11 @@ public class Manager : MonoBehaviour {
 	private Text outcome_text; 
 
 	private State game_state;
+
+	private float start_time;
+	private int rest_seconds;
+	private Text text_timer;
+	private bool stop_timer;
 
 	// Use this for initialization
 	void Start () {
@@ -87,6 +94,10 @@ public class Manager : MonoBehaviour {
 		opponent_score = 0;
 
 		outcome_text = (Text)outcome_text_obj.GetComponent("Text");
+
+		start_time = Time.time;
+		text_timer = (Text)timer.GetComponent("Text");
+		stop_timer = false;
 	}
 	
 	// Update is called once per frame
@@ -110,8 +121,7 @@ public class Manager : MonoBehaviour {
 			break;
 		}
 
-
-
+		CountDown();
 	}
 
 
@@ -124,6 +134,7 @@ public class Manager : MonoBehaviour {
 	 */
 	public void PlayerChoose(int player_choice)
 	{
+		stop_timer = true;
 		switch(player_choice){
 		case 0:
 			player_move = Move.rock;
@@ -170,7 +181,6 @@ public class Manager : MonoBehaviour {
 	// Show turn results
 	void ShowResults ()
 	{
-
 		Image player_image = (Image)player.GetComponent("Image");
 		Image opponent_image = (Image)opponent.GetComponent("Image");
 
@@ -236,12 +246,12 @@ public class Manager : MonoBehaviour {
 			}
 		}
 
-		StartCoroutine(ShowOutcome());
+		StartCoroutine(ShowOutcome(turn_result));
 
 		game_state = State.idle;
 	}
 
-	IEnumerator ShowOutcome(){
+	IEnumerator ShowOutcome(Result result){
 
 		yield return new WaitForSeconds(0.7f);
 
@@ -268,7 +278,8 @@ public class Manager : MonoBehaviour {
 		player_image.sprite = rock;
 		opponent_image.sprite = rock;
 
-
+		stop_timer = false;
+		start_time = Time.time;
 		if(player_score == 5 || opponent_score == 5)
 			game_state = State.end_game;
 		else
@@ -287,6 +298,23 @@ public class Manager : MonoBehaviour {
 		yield return new WaitForSeconds(1);
 
 		Application.LoadLevel(0);
+	}
+
+	void CountDown()
+	{
+		if(!stop_timer){
+			float time = Time.time - start_time;
+			rest_seconds = (int)(turn_time - time); // 10 seconds turn;
+
+			text_timer.text = rest_seconds.ToString();
+
+			if(rest_seconds == 0){
+				canvas_animator.SetBool("Hide", true);
+				StartCoroutine(ShowOutcome(Result.lose));
+			}
+		} else {
+			text_timer.text = "";
+		}
 	}
 
 }

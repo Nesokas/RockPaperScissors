@@ -255,11 +255,11 @@ public class Manager : MonoBehaviour {
 
 		yield return new WaitForSeconds(0.7f);
 
-		if(turn_result == Result.lose){
+		if(result == Result.lose){
 			outcome_text.text = "LOSE";
 			opponent_stars[opponent_score].sprite = star_filled;
 			opponent_score++;
-		} else if(turn_result == Result.win) {
+		} else if(result == Result.win) {
 			outcome_text.text = "WIN";
 			player_stars[player_score].sprite = star_filled;
 			player_score++;
@@ -308,13 +308,20 @@ public class Manager : MonoBehaviour {
 
 			text_timer.text = rest_seconds.ToString();
 
-			if(rest_seconds == 0){
+			if(rest_seconds <= 0){
+				stop_timer = true;
+				game_state = State.idle;
 				canvas_animator.SetBool("Hide", true);
 				StartCoroutine(ShowOutcome(Result.lose));
 			}
 		} else {
 			text_timer.text = "";
 		}
+	}
+
+	public void ExitGame()
+	{
+		Application.LoadLevel(0);
 	}
 
 }

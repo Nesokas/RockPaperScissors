@@ -9,7 +9,7 @@
 // ------------------------------------------------------------------------------
 using System;
 using System.Threading;
-using System.Net;
+using LostPolygon.System.Net;
 using System.Text;
 using System.Collections.Generic;
 using System.IO;

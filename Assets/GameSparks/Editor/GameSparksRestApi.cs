@@ -1,10 +1,9 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections.Generic;
 using System;
 using System.IO;
-using System.Net;
+using LostPolygon.System.Net;
 using System.Threading;
-
 
 public class GameSparksRestApi {
 
@@ -26,8 +25,8 @@ public class GameSparksRestApi {
 
 	public static String getDownloadable(string apiKey, string username, string password, string shortCode){
 		string url = REST_URL + apiKey + "/binarycontent/" + shortCode;
-		WebClient wc = new WebClient();
-		NetworkCredential myCreds = new NetworkCredential(username, password);
+		System.Net.WebClient wc = new System.Net.WebClient();
+		System.Net.NetworkCredential myCreds = new System.Net.NetworkCredential(username, password);
 		wc.Credentials = myCreds;
 		String ret = null;
 		try{
@@ -83,7 +82,7 @@ public class GameSparksRestApi {
 			source = HOST + "sdk/" + source;
 		}
 		Directory.CreateDirectory(Path.GetDirectoryName(target));
-		WebClient wc = new WebClient();
+		System.Net.WebClient wc = new System.Net.WebClient();
 		try{
 			wc.DownloadFile(source, target);
 			return true;

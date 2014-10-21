@@ -7,36 +7,47 @@ public class MainMenu : MonoBehaviour {
 
 	public void Awake() 
 	{
-		if(!FB.IsInitialized){
-			FB.Init(FacebookLogin);
-		} else {
-			FacebookLogin();
-		}
+		CallFBInit();
 	}
 
-	public void FacebookLogin()
+	private void CallFBInit()
 	{
-		if(!FB.IsLoggedIn){
-			FB.Login("", GameSparksLogin);
-		}
+		FB.Init(OnInitComplete, OnHideUnity);
 	}
 
-	public void GameSparksLogin(FBResult result)
+	private void OnInitComplete()
 	{
-		if(FB.IsLoggedIn){
-			new FacebookConnectRequest().SetAccessToken(FB.AccessToken).Send((response) => 
+		Debug.Log("FB.Init completed: is user logged in? " + FB.IsLoggedIn);
+		CallFBLoginIn();
+	}
+
+	private void OnHideUnity(bool is_game_shown)
+	{
+		Debug.Log("Is game shownig? " + is_game_shown);
+	}
+
+	private void CallFBLoginIn()
+	{
+		FB.Login("email,user_friends", GameSparksLogin);
+	}
+
+	private void GameSparksLogin(FBResult result)
+	{
+		if(FB.IsLoggedIn) {
+			new FacebookConnectRequest().SetAccessToken(FB.AccessToken).Send ((response) =>
 			{
-				if(response.HasErrors){
-					Debug.Log("Something went wrong with Facebook login");
-				} else {
-					Debug.Log("GameSparks Facebook login successful");
+				if(response.HasErrors)
+					Debug.Log("Something went wrong when logging to facebook: " + result.Error);
+				else {
+					Debug.Log("Gamesparks facebook login succeful.");
+					UserManager.instance.UpdateInformation();
 				}
 			});
 		}
 	}
 
-	public void StartOfflineGame()
+	public void ExitGame()
 	{
-		Application.LoadLevel(1);
+		Application.Quit();
 	}
 }

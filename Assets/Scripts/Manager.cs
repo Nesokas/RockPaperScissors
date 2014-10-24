@@ -11,7 +11,8 @@ public class Manager : MonoBehaviour {
 		rock,
 		paper,
 		scissor,
-		notReady
+		notReady,
+		time_out
 	};
 
 	private enum State {
@@ -168,28 +169,39 @@ public class Manager : MonoBehaviour {
 		 * opponent_move = (Move)possible_moves.GetValue(random.Next(possible_moves.Length));
 		 */
 
-		//choose_your_move.SetActive(false); // disable menu
 		canvas_animator.SetBool("Hide", true);
-		game_state = State.idle;
-
 	}
 
 	// Show window to choose player move
 	void ChooseMove ()
 	{
 		//choose_your_move.SetActive(true);
-		canvas_animator.SetBool("Hide", false);
-		StartCoroutine(WaitForOpponentMove());
-		StartCoroutine(WaitPlayersReady());
+		if(player_manager != null){
+			if(opponent_manager != null){
+				if(!player_manager.ready_for_new_round)
+					if(!opponent_manager.ready_for_new_round)
+						return;
+
+				canvas_animator.SetBool("Hide", false);
+				StartCoroutine(WaitForOpponentMove());
+				StartCoroutine(WaitPlayersReady());
+				game_state = State.idle;
+			}
+		}
 	}
 
+	string debug = "";
 	IEnumerator WaitForOpponentMove()
 	{
 		while(opponent_manager == null)
 			yield return null;
 
-		while(opponent_manager.move == Move.notReady && !opponent_manager.player_time_out)
+		while(opponent_manager.move == Move.notReady){
+			debug = "player_move: " + player_manager.move + "; opponent_move: " + opponent_manager.move;
 			yield return null;
+		}
+
+		debug = "player_move: " + player_manager.move + "; opponent_move: " + opponent_manager.move;
 
 		opponent_move = opponent_manager.move;
 		opponent_ready.SetActive(true);
@@ -202,10 +214,15 @@ public class Manager : MonoBehaviour {
 
 		player_ready.SetActive(false);
 		opponent_ready.SetActive(false);
-		player_animator.SetBool("hand_move", true); // start player and opponent animations
-		opponent_animator.SetBool("hand_move", true);
-		
-		game_state = State.play_animation; // change game state
+
+		if(player_move != Move.time_out && opponent_move != Move.time_out){
+			player_animator.SetBool("hand_move", true); // start player and opponent animations
+			opponent_animator.SetBool("hand_move", true);
+			
+			game_state = State.play_animation; // change game state
+		} else {
+			game_state = State.show_result;
+		}
 	}
 
 
@@ -221,6 +238,7 @@ public class Manager : MonoBehaviour {
 	// Show turn results
 	void ShowResults ()
 	{
+		player_manager.ready_for_new_round = false;
 		Image player_image = (Image)player.GetComponent("Image");
 		Image opponent_image = (Image)opponent.GetComponent("Image");
 
@@ -254,7 +272,9 @@ public class Manager : MonoBehaviour {
 			break;
 		}
 
-		if(player_move == Move.rock) {
+		if(player_move == Move.time_out && opponent_move == Move.time_out) {
+			turn_result = Result.draw;
+		} else 	if(player_move == Move.rock) {
 			switch(opponent_move){
 			case Move.rock:
 				turn_result = Result.draw;
@@ -265,7 +285,7 @@ public class Manager : MonoBehaviour {
 			case Move.scissor:
 				turn_result = Result.win;
 				break;
-			case Move.notReady:
+			case Move.time_out:
 				turn_result = Result.win;
 				break;
 			}
@@ -280,11 +300,11 @@ public class Manager : MonoBehaviour {
 			case Move.scissor:
 				turn_result = Result.lose;
 				break;
-			case Move.notReady:
+			case Move.time_out:
 				turn_result = Result.win;
 				break;
 			}
-		} else if(player_move == Move.scissor){ // player choose scissors
+		} else if(player_move == Move.scissor){
 			switch(opponent_move){
 			case Move.rock:
 				turn_result = Result.lose;
@@ -295,19 +315,17 @@ public class Manager : MonoBehaviour {
 			case Move.scissor:
 				turn_result = Result.draw;
 				break;
-			case Move.notReady:
+			case Move.time_out:
 				turn_result = Result.win;
 				break;
 			}
-		} else if(player_move == Move.notReady && opponent_move == Move.notReady) {
-			turn_result = Result.draw;
+		} else { // opponent played something but not the player
+			turn_result = Result.lose;
+			player_image.sprite = rock;
+			opponent_image.sprite = rock;
 		}
 
-		player_move = Move.notReady;
-		opponent_move = Move.notReady;
-		player_manager.move = Move.notReady;
-		opponent_manager.move = Move.notReady;
-		player_manager.player_time_out = false;
+		//opponent_manager.move = Move.notReady;
 		StartCoroutine(ShowOutcome(turn_result));
 
 		game_state = State.idle;
@@ -319,18 +337,28 @@ public class Manager : MonoBehaviour {
 
 		if(result == Result.lose){
 			outcome_text.text = "LOSE";
+			if(player_move == Move.time_out)
+				outcome_text.text += "\nyour time was up";
 			opponent_stars[opponent_score].sprite = star_filled;
 			opponent_score++;
 		} else if(result == Result.win) {
 			outcome_text.text = "WIN";
+			if(opponent_move == Move.time_out)
+				outcome_text.text += "\nopponent time was up";
 			player_stars[player_score].sprite = star_filled;
 			player_score++;
 		} else {
 			outcome_text.text = "DRAW";
+			if(player_move == Move.time_out && opponent_move == Move.time_out)
+				outcome_text.text += "\nyours and opponents time was up";
 		}
 
+		player_move = Move.notReady;
+		opponent_move = Move.notReady;
+		player_manager.move = Move.notReady;
+
 		outcome_obj.SetActive(true);
-		yield return new WaitForSeconds(1);
+		yield return new WaitForSeconds(2.5);
 		outcome_obj.SetActive(false);
 
 		// return hands to normal state
@@ -346,6 +374,8 @@ public class Manager : MonoBehaviour {
 			game_state = State.end_game;
 		else
 			game_state = State.choose_move;
+
+		player_manager.ready_for_new_round = true;
 	}
 
 	IEnumerator EndGame ()
@@ -354,7 +384,7 @@ public class Manager : MonoBehaviour {
 		if(player_score == 5)
 			end_game_win.SetActive(true);
 		else
-			end_game_panel.SetActive(true);
+			end_game_loose.SetActive(true);
 
 		game_state = State.idle;
 		yield return new WaitForSeconds(1);
@@ -374,7 +404,8 @@ public class Manager : MonoBehaviour {
 				stop_timer = true;
 				game_state = State.idle;
 				canvas_animator.SetBool("Hide", true);
-				player_manager.player_time_out = true;
+				player_move = Move.time_out;
+				player_manager.move = player_move;
 				player_ready.SetActive(true);
 			}
 		} else {
@@ -399,6 +430,16 @@ public class Manager : MonoBehaviour {
 			player_manager = player_m;
 		else
 			opponent_manager = player_m;
+	}
+
+	void OnGUI()
+	{
+#if UNITY_EDITOR
+		GUILayout.Label(debug);
+		if(player_manager != null && opponent_manager != null)
+			GUILayout.Label("player_ready: " + player_manager.ready_for_new_round + " opponent_ready: " + opponent_manager.ready_for_new_round);
+		GUILayout.Label(debug);
+#endif
 	}
 
 }

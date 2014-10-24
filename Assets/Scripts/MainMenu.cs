@@ -41,6 +41,7 @@ public class MainMenu : MonoBehaviour {
 				else {
 					Debug.Log("Gamesparks facebook login succeful.");
 					UserManager.instance.UpdateInformation();
+					this.GetComponent<PlayersManager>().GetOpponents();
 				}
 			});
 		}

@@ -358,7 +358,7 @@ public class Manager : MonoBehaviour {
 		player_manager.move = Move.notReady;
 
 		outcome_obj.SetActive(true);
-		yield return new WaitForSeconds(2.5);
+		yield return new WaitForSeconds(2.5f);
 		outcome_obj.SetActive(false);
 
 		// return hands to normal state

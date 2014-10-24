@@ -5,75 +5,98 @@ using UnityEngine.UI;
 
 public class MainMenu : MonoBehaviour {
 
-	public GameObject facebook_login;
 	public GameObject lobby;
+	public GameObject room_prefab;
+	public GameObject waiting;
+	public GameObject all_lobby;
+	public GameObject welcome;
 
-	public GameObject debug_text_object;
-	private Text debug_text;
+	public string player_name;
 
-	void Awake()
-	{
-		if(!FB.IsInitialized){
-			FB.Init(SetInit);
-		} else {
-			SetInit();
-		}
+	bool has_joined_lobby = false;
+	bool is_waiting_for_rooms = true;
 
-		debug_text = (Text)debug_text_object.GetComponent("Text");
-	}
-
-	private void SetInit()
-	{
-		enabled = true;
-		if (FB.IsLoggedIn)
-		{
-			Debug.Log("SetInit()");
-			OnLoggedIn();
-		}
-	}
-
-	void Update()
-	{
-		debug_text.text = PhotonNetwork.connectionStateDetailed.ToString();
-		debug_text.text = "Update";
-		if(PhotonNetwork.connectionStateDetailed == PeerState.JoinedLobby){
-			Debug.Log("joined lobby");
-			facebook_login.SetActive(false);
-			lobby.SetActive(true);
-		}
-	}
-
-	private void OnHideUnity(bool isGameShown)
-	{
-		Debug.Log("OnHideUnity()");
-	} 
-
-	void LoginCallback(FBResult result)
-	{
-		if (FB.IsLoggedIn)
-		{
-			OnLoggedIn();
-		}
-	}
-
-	public void StartOfflineGame()
-	{
-		Application.LoadLevel(1);
-	}
-
-	public void LoginFacebook()
-	{
-		Debug.Log("Button Pressed");
-		FB.Login("email", LoginCallback);
-	}
-
-	void OnLoggedIn()
-	{
-		PhotonNetwork.AuthValues = new AuthenticationValues();
-		PhotonNetwork.AuthValues.AuthType = CustomAuthenticationType.Facebook;
-		PhotonNetwork.AuthValues.SetAuthParameters(FB.UserId, FB.AccessToken);
+	void Start() {
 		PhotonNetwork.ConnectUsingSettings("0.1");
 	}
+	
+	void OnReceivedRoomListUpdate()
+	{
+		foreach(Transform child in lobby.transform){
+			GameObject.Destroy(child.gameObject);
+		}
+		RectTransform rowRectTransform = room_prefab.GetComponent<RectTransform>();
+		RectTransform lobbyRectTransform = lobby.GetComponent<RectTransform>();
+		
+		RoomInfo[] all_rooms = PhotonNetwork.GetRoomList();
+		
+		int i = 0;
+		foreach(RoomInfo room in all_rooms) {
+			if(room.playerCount < 2) {
+				GameObject new_room = (GameObject)Instantiate(room_prefab, room_prefab.transform.position, room_prefab.transform.rotation);
+				new_room.transform.SetParent(lobby.transform, false);
+				
+				new_room.GetComponent<PlayerRoom>().room_name.text = room.name;
+				
+				RectTransform rect_transform = new_room.GetComponent<RectTransform>();
+				Vector2 new_position = rect_transform.anchoredPosition;
+				new_position.y -= 48*i;
+				rect_transform.anchoredPosition = new_position;
+				
+				RectTransform lobby_rect = lobby.GetComponent<RectTransform>();
+				if(Mathf.Abs(new_position.y) > lobby_rect.rect.height) {
+					Vector2 new_lobby_size = lobby_rect.sizeDelta;
+					new_lobby_size.y = Mathf.Abs(new_position.y) + rect_transform.rect.height;
+					lobby_rect.sizeDelta = new_lobby_size;
+					Vector2 new_lobby_position = new Vector2(0,0);
+					lobby_rect.offsetMax = new_lobby_position;
+				}
+				i++;
+			}
+		}
+	}
+
+	void OnJoinedLobby()
+	{
+		welcome.SetActive(false);
+		all_lobby.SetActive(true);
+	}
+	
+	void OnGUI()
+	{
+#if UNITY_EDITOR
+		GUILayout.Label(PhotonNetwork.connectionStateDetailed.ToString());
+#endif
+	}
+
+	public void CreateRoom()
+	{
+		PhotonNetwork.CreateRoom(player_name, true, true, 2);
+		waiting.SetActive(true);
+	}
+
+	public void CancelRoom()
+	{
+		PhotonNetwork.LeaveRoom();
+		waiting.SetActive(false);
+	}
+
+	public void JoinRandom()
+	{
+		PhotonNetwork.JoinRandomRoom();
+	}
+
+	public void ExitGame()
+	{
+		Application.Quit();
+	}
+
+	public void OnJoinedRoom()
+	{
+		if(PhotonNetwork.room.playerCount == 2)
+			Application.LoadLevel(1);
+	}
+
 }
 
 

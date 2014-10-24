@@ -2,7 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Net;
+using LostPolygon.System.Net;
 using ExitGames.Client.Photon;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
@@ -10,7 +10,7 @@ using Debug = UnityEngine.Debug;
 
 #if UNITY_EDITOR || (!UNITY_ANDROID && !UNITY_IPHONE && !UNITY_PS3 && !UNITY_WINRT)
 
-using System.Net.Sockets;
+using LostPolygon.System.Net.Sockets;
 
 /// <summary>Uses C# Socket class from System.Net.Sockets (as Unity usually does).</summary>
 /// <remarks>Incompatible with Windows 8 Store/Phone API.</remarks>

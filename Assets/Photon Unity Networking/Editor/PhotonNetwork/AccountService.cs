@@ -16,7 +16,7 @@ using System.Security.Cryptography.X509Certificates;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net;
+using LostPolygon.System.Net;
 
 using Newtonsoft.Json;
 
@@ -42,7 +42,7 @@ public class AccountService
     public AccountService()
     {
         WebRequest.DefaultWebProxy = null;
-        ServicePointManager.ServerCertificateValidationCallback = Validator;
+        System.Net.ServicePointManager.ServerCertificateValidationCallback = Validator;
     }
 
     public static bool Validator(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors policyErrors)

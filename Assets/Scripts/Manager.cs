@@ -1,15 +1,17 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
-using System.Collections;
 using System;
+using System.Collections;
+using System.Collections.Generic;
 
 
 public class Manager : MonoBehaviour {
 
-	private enum Move {
+	public enum Move {
 		rock,
 		paper,
-		scissor
+		scissor,
+		notReady
 	};
 
 	private enum State {
@@ -51,6 +53,9 @@ public class Manager : MonoBehaviour {
 	public GameObject timer;
 	public int turn_time;
 
+	public GameObject player_ready;
+	public GameObject opponent_ready;
+
 	private Image[] player_stars;
 	private Image[] opponent_stars;
 
@@ -73,6 +78,9 @@ public class Manager : MonoBehaviour {
 	private int rest_seconds;
 	private Text text_timer;
 	private bool stop_timer;
+
+	private PlayerManager player_manager;
+	private PlayerManager opponent_manager;
 
 	// Use this for initialization
 	protected void Start () {
@@ -98,6 +106,10 @@ public class Manager : MonoBehaviour {
 		start_time = Time.time;
 		text_timer = (Text)timer.GetComponent("Text");
 		stop_timer = false;
+
+		PhotonNetwork.Instantiate("Prefabs/PlayerManager", Vector3.zero, Quaternion.identity, 0);
+		player_move = Move.notReady;
+		opponent_move = Move.notReady;
 	}
 	
 	// Update is called once per frame
@@ -147,18 +159,19 @@ public class Manager : MonoBehaviour {
 			break;
 		}
 
-		// random opponent decision
-		Array possible_moves = Enum.GetValues(typeof(Move));
-		System.Random random = new System.Random();
-		opponent_move = (Move)possible_moves.GetValue(random.Next(possible_moves.Length));
+		player_manager.move = player_move;
+		player_ready.SetActive(true);
+
+		/* // random opponent decision
+		 * Array possible_moves = Enum.GetValues(typeof(Move));
+		 * System.Random random = new System.Random();
+		 * opponent_move = (Move)possible_moves.GetValue(random.Next(possible_moves.Length));
+		 */
 
 		//choose_your_move.SetActive(false); // disable menu
 		canvas_animator.SetBool("Hide", true);
+		game_state = State.idle;
 
-		player_animator.SetBool("hand_move", true); // start player and opponent animations
-		opponent_animator.SetBool("hand_move", true);
-
-		game_state = State.play_animation; // change game state
 	}
 
 	// Show window to choose player move
@@ -166,6 +179,33 @@ public class Manager : MonoBehaviour {
 	{
 		//choose_your_move.SetActive(true);
 		canvas_animator.SetBool("Hide", false);
+		StartCoroutine(WaitForOpponentMove());
+		StartCoroutine(WaitPlayersReady());
+	}
+
+	IEnumerator WaitForOpponentMove()
+	{
+		while(opponent_manager == null)
+			yield return null;
+
+		while(opponent_manager.move == Move.notReady && !opponent_manager.player_time_out)
+			yield return null;
+
+		opponent_move = opponent_manager.move;
+		opponent_ready.SetActive(true);
+	}
+
+	IEnumerator WaitPlayersReady()
+	{
+		while(!player_ready.activeSelf || !opponent_ready.activeSelf)
+			yield return null;
+
+		player_ready.SetActive(false);
+		opponent_ready.SetActive(false);
+		player_animator.SetBool("hand_move", true); // start player and opponent animations
+		opponent_animator.SetBool("hand_move", true);
+		
+		game_state = State.play_animation; // change game state
 	}
 
 
@@ -194,6 +234,9 @@ public class Manager : MonoBehaviour {
 		case Move.scissor:
 			player_image.sprite = scissor;
 			break;
+		default:
+			player_image.sprite = rock;
+			break;
 		}
 
 		switch(opponent_move){
@@ -205,6 +248,9 @@ public class Manager : MonoBehaviour {
 			break;
 		case Move.scissor:
 			opponent_image.sprite = scissor;
+			break;
+		default:
+			player_image.sprite = rock;
 			break;
 		}
 
@@ -219,6 +265,9 @@ public class Manager : MonoBehaviour {
 			case Move.scissor:
 				turn_result = Result.win;
 				break;
+			case Move.notReady:
+				turn_result = Result.win;
+				break;
 			}
 		} else if(player_move == Move.paper) {
 			switch(opponent_move){
@@ -231,8 +280,11 @@ public class Manager : MonoBehaviour {
 			case Move.scissor:
 				turn_result = Result.lose;
 				break;
+			case Move.notReady:
+				turn_result = Result.win;
+				break;
 			}
-		} else { // player choose scissors
+		} else if(player_move == Move.scissor){ // player choose scissors
 			switch(opponent_move){
 			case Move.rock:
 				turn_result = Result.lose;
@@ -243,9 +295,19 @@ public class Manager : MonoBehaviour {
 			case Move.scissor:
 				turn_result = Result.draw;
 				break;
+			case Move.notReady:
+				turn_result = Result.win;
+				break;
 			}
+		} else if(player_move == Move.notReady && opponent_move == Move.notReady) {
+			turn_result = Result.draw;
 		}
 
+		player_move = Move.notReady;
+		opponent_move = Move.notReady;
+		player_manager.move = Move.notReady;
+		opponent_manager.move = Move.notReady;
+		player_manager.player_time_out = false;
 		StartCoroutine(ShowOutcome(turn_result));
 
 		game_state = State.idle;
@@ -312,7 +374,8 @@ public class Manager : MonoBehaviour {
 				stop_timer = true;
 				game_state = State.idle;
 				canvas_animator.SetBool("Hide", true);
-				StartCoroutine(ShowOutcome(Result.lose));
+				player_manager.player_time_out = true;
+				player_ready.SetActive(true);
 			}
 		} else {
 			text_timer.text = "";
@@ -321,7 +384,21 @@ public class Manager : MonoBehaviour {
 
 	public void ExitGame()
 	{
+		PhotonNetwork.LeaveRoom();
 		Application.LoadLevel(0);
+	}
+
+	void OnPhotonPlayerDisconnected(PhotonPlayer otherPlayer)
+	{
+		ExitGame();
+	}
+
+	public void RegisterNewPlayer(PlayerManager player_m)
+	{
+		if(player_m.is_local_player)
+			player_manager = player_m;
+		else
+			opponent_manager = player_m;
 	}
 
 }

@@ -13,9 +13,6 @@ public class MainMenu : MonoBehaviour {
 
 	public string player_name;
 
-	bool has_joined_lobby = false;
-	bool is_waiting_for_rooms = true;
-
 	void Start() {
 		PhotonNetwork.ConnectUsingSettings("0.1");
 	}
@@ -25,8 +22,6 @@ public class MainMenu : MonoBehaviour {
 		foreach(Transform child in lobby.transform){
 			GameObject.Destroy(child.gameObject);
 		}
-		RectTransform rowRectTransform = room_prefab.GetComponent<RectTransform>();
-		RectTransform lobbyRectTransform = lobby.GetComponent<RectTransform>();
 		
 		RoomInfo[] all_rooms = PhotonNetwork.GetRoomList();
 		
@@ -71,7 +66,7 @@ public class MainMenu : MonoBehaviour {
 
 	public void CreateRoom()
 	{
-		PhotonNetwork.CreateRoom(player_name, true, true, 2);
+		PhotonNetwork.CreateRoom(player_name, new RoomOptions(){maxPlayers=2}, null);
 		waiting.SetActive(true);
 	}
 
@@ -91,8 +86,18 @@ public class MainMenu : MonoBehaviour {
 		Application.Quit();
 	}
 
+	// Called by the player who created the room when another player connects to the room
+	public void OnPhotonPlayerConnected(PhotonPlayer newPlayer)
+	{
+		Debug.Log("Joined room: " + PhotonNetwork.room.playerCount);
+		if(PhotonNetwork.room.playerCount == 2)
+			Application.LoadLevel(1);
+	}
+
+	// Called by the player joining the room when he connects to the room
 	public void OnJoinedRoom()
 	{
+		Debug.Log("Joined room: " + PhotonNetwork.room.playerCount);
 		if(PhotonNetwork.room.playerCount == 2)
 			Application.LoadLevel(1);
 	}

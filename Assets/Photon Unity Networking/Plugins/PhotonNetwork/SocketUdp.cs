@@ -13,8 +13,8 @@
 namespace ExitGames.Client.Photon
 {
     using System;
-    using System.Net;
-    using System.Net.Sockets;
+    using LostPolygon.System.Net;
+    using LostPolygon.System.Net.Sockets;
     using System.Security;
     using System.Threading;
 

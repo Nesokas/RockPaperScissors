@@ -400,6 +400,7 @@ public class RockPaperScissor : MonoBehaviour {
 		game_state = State.idle;
 		yield return new WaitForSeconds(1);
 
+
 		Application.LoadLevel(0);
 	}
 

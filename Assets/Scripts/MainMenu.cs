@@ -16,73 +16,46 @@ public class MainMenu : MonoBehaviour {
 	public GameObject login;
 
 	public string player_name;
-	bool is_playfab_login;
-	bool is_photon_login;
-	string playfab_id;
-	bool has_logged_in_before;
 
-	bool try_reconnect = false;
+	int room_index = 0;
+	Dictionary<RoomInfo,int> rooms = new Dictionary<RoomInfo,int>();
+	APIManager api_manager;
 
 	void Awake() {
-		is_playfab_login = false;
-		is_photon_login = false;
-		PhotonNetwork.ConnectUsingSettings("0.1");
-		if(FB.IsInitialized) {
-			FacebookLogin();
+		NotificationCenter.DefaultCenter.AddObserver(this, "TryingGameFabLogin");
+		NotificationCenter.DefaultCenter.AddObserver(this, "PhotonLoggedIn");
+	}
+
+	void Start()
+	{
+		GameObject game_manager_obj = GameObject.FindGameObjectWithTag("GameManager");
+		api_manager = game_manager_obj.GetComponent<APIManager>();
+		if(api_manager.has_logged_in_before){
+			all_lobby.SetActive(true);
+			login.SetActive(false);
+			welcome.SetActive(false);
 		}
 	}
 
 	public void InitializeFacebook()
 	{
-		FB.Init(FacebookLogin);
+		GameObject game_manager_obj = GameObject.FindGameObjectWithTag("GameManager");
+		APIManager api_manager = game_manager_obj.GetComponent<APIManager>();
+		api_manager.InitializeFacebook();
 	}
 
-	void FacebookLogin()
+	void TryingGameFabLogin()
 	{
-		if(!FB.IsLoggedIn){
-			FB.Login("", PlayFabLogin);
-		} else {
-			PlayFabLogin(null);
-		}
 		login.SetActive(false);
 		welcome.SetActive(true);
 	}
 
-	void PlayFabLogin(FBResult result)
-	{
-		if(FB.IsLoggedIn){
-			LoginWithFacebookRequest request = new LoginWithFacebookRequest();
-			request.AccessToken = FB.AccessToken;
-			request.TitleId = PlayFabData.TitleId;
-			request.CreateAccount = true;
-			PlayFabClientAPI.LoginWithFacebook(request, OnLoginResult, OnPlayFabError);
-		}
-		has_logged_in_before = true;
-	}
-
-	void OnLoginResult(LoginResult result)
-	{
-		PlayFabData.AuthKey = result.SessionTicket;
-		is_playfab_login = true;
-		playfab_id = result.PlayFabId;
-	}
-
-	void OnPlayFabError(PlayFabError error)
-	{
-		Debug.Log ("Got an error: " + error.Error);
-	}
-
 	void Update()
 	{
-		if(is_photon_login && is_playfab_login && Application.loadedLevelName != "Game") {
+		if(api_manager.is_logged_in_photon && api_manager.is_logged_in_playfab) {
 			all_lobby.SetActive(true);
 			welcome.SetActive(false);
 			login.SetActive(false);
-		}
-
-		if(try_reconnect) {
-			PhotonNetwork.ConnectUsingSettings("0.1");
-			try_reconnect = false;
 		}
 	}
 
@@ -110,8 +83,6 @@ public class MainMenu : MonoBehaviour {
 		}
 	}
 
-	int i = 0;
-	Dictionary<RoomInfo,int> rooms = new Dictionary<RoomInfo,int>();
 	void OnReceivedRoomListUpdate()
 	{
 		foreach(Transform child in lobby.transform){
@@ -125,17 +96,22 @@ public class MainMenu : MonoBehaviour {
 		}
 		rooms.Clear();
 		
-		i = 0;
+		room_index = 0;
 		foreach(RoomInfo room in all_rooms) {
 			if(room.playerCount < 2) {
 				Debug.Log("new room request: " + room.name);
 				GetAccountInfoRequest request = new GetAccountInfoRequest();
 				request.PlayFabId = room.name;
-				rooms.Add(room, i);
+				rooms.Add(room, room_index);
 				PlayFabClientAPI.GetAccountInfo(request, CreateNewRoom, OnPlayFabError);
-				i++;
+				room_index++;
 			}
 		}
+	}
+
+	void OnPlayFabError(PlayFabError error)
+	{
+		Debug.Log ("Got an error: " + error.Error);
 	}
 
 	void CreateNewRoom(GetAccountInfoResult result)
@@ -151,26 +127,26 @@ public class MainMenu : MonoBehaviour {
 
 	void OnJoinedLobby()
 	{
-		is_photon_login = true;
+		all_lobby.SetActive(false);
+		login.SetActive(false);
 		welcome.SetActive(false);
-		if(has_logged_in_before){
+
+		if(api_manager.has_logged_in_before){
 			all_lobby.SetActive(true);
-			FacebookLogin();
 		} else {
 			login.SetActive(true);
 		}
 	}
-	
-	void OnGUI()
-	{
-#if UNITY_EDITOR
-		GUILayout.Label(PhotonNetwork.connectionStateDetailed.ToString());
-#endif
-	}
 
 	public void CreateRoom()
 	{
+		GameObject game_manager = GameObject.FindGameObjectWithTag("GameManager");
+		APIManager api_manager = game_manager.GetComponent<APIManager>();
+		string playfab_id = api_manager.playfab_id;
+		api_manager.last_room_connected = playfab_id;
+
 		PhotonNetwork.CreateRoom(playfab_id, new RoomOptions(){maxPlayers=2}, null);
+
 		waiting.SetActive(true);
 	}
 
@@ -213,13 +189,10 @@ public class MainMenu : MonoBehaviour {
 
 	void OnDisconnectedFromPhoton()
 	{
-		Debug.Log("Disconnected from Photon");
-		try_reconnect =true;
+		Debug.Log("Disconnected from Photon"); 
 		all_lobby.SetActive(false);
 		login.SetActive(false);
 		welcome.SetActive(true);
-		is_photon_login = false;
-		is_playfab_login = false;
 	}
 
 	void OnFailedToConnectToPhoton(DisconnectCause cause)

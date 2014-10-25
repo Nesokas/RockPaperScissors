@@ -5,7 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 
 
-public class Manager : MonoBehaviour {
+public class RockPaperScissor : MonoBehaviour {
 
 	public enum Move {
 		rock,
@@ -57,6 +57,12 @@ public class Manager : MonoBehaviour {
 	public GameObject player_ready;
 	public GameObject opponent_ready;
 
+	public GameObject lost_connection_obj;
+	public Text lost_connection_text;
+
+	private float lost_connection_remaining;
+	private bool waiting_to_reconnect = false;
+
 	private Image[] player_stars;
 	private Image[] opponent_stars;
 
@@ -83,6 +89,8 @@ public class Manager : MonoBehaviour {
 	private PlayerManager player_manager;
 	private PlayerManager opponent_manager;
 
+	private GameObject player_manager_obj;
+
 	// Use this for initialization
 	protected void Start () {
 		game_state = State.choose_move;
@@ -108,7 +116,7 @@ public class Manager : MonoBehaviour {
 		text_timer = (Text)timer.GetComponent("Text");
 		stop_timer = false;
 
-		PhotonNetwork.Instantiate("Prefabs/PlayerManager", Vector3.zero, Quaternion.identity, 0);
+		player_manager_obj = PhotonNetwork.Instantiate("Prefabs/PlayerManager", Vector3.zero, Quaternion.identity, 0);
 		player_move = Move.notReady;
 		opponent_move = Move.notReady;
 	}
@@ -134,7 +142,9 @@ public class Manager : MonoBehaviour {
 			break;
 		}
 
-		CountDown();
+		if(!waiting_to_reconnect){
+			CountDown();
+		}
 	}
 
 
@@ -182,6 +192,7 @@ public class Manager : MonoBehaviour {
 					if(!opponent_manager.ready_for_new_round)
 						return;
 
+				Debug.Log("chosing move");
 				canvas_animator.SetBool("Hide", false);
 				StartCoroutine(WaitForOpponentMove());
 				StartCoroutine(WaitPlayersReady());
@@ -421,15 +432,68 @@ public class Manager : MonoBehaviour {
 
 	void OnPhotonPlayerDisconnected(PhotonPlayer otherPlayer)
 	{
-		ExitGame();
+		if(otherPlayer.isMasterClient)
+			PhotonNetwork.SetMasterClient(PhotonNetwork.player);
+		waiting_to_reconnect = true;
+		StartCoroutine(WaitForPlayerReconnect("Waiting for opponent to reconnect: "));
 	}
+
+	IEnumerator WaitForPlayerReconnect(string message)
+	{
+		Debug.Log("tryong to reconnect");
+		lost_connection_obj.SetActive(true);
+		float time_left = 60; // wait a minute for other player reconnection
+		while(waiting_to_reconnect) {
+			lost_connection_text.text = message + (int)time_left;
+			time_left -= Time.deltaTime;
+			if(time_left < 0){
+				PhotonNetwork.LeaveRoom();
+				Application.LoadLevel(0); // if time went off return to lobby
+			}
+			yield return null;
+		}
+		lost_connection_obj.SetActive(false);
+	}
+
+	void OnJoinedLobby()
+	{
+		GameObject game_manager = GameObject.FindGameObjectWithTag("GameManager");
+		APIManager api_manager = game_manager.GetComponent<APIManager>();
+
+		PhotonNetwork.JoinRoom(api_manager.last_room_connected);
+	}
+
+	void OnPhotonPlayerConnected(PhotonPlayer newPlayer)
+	{
+		waiting_to_reconnect = false;
+	}
+
+	void OnJoinedRoom()
+	{
+		waiting_to_reconnect = false;
+		player_manager_obj = PhotonNetwork.Instantiate("Prefabs/PlayerManager", Vector3.zero, Quaternion.identity, 0);
+	}
+
+	void OnDisconnectedFromPhoton()
+	{
+		player_ready_for_new_round = player_manager.ready_for_new_round;
+		Destroy(player_manager_obj);
+		Destroy(opponent_manager.gameObject);
+		waiting_to_reconnect = true;
+		StartCoroutine(WaitForPlayerReconnect("Trying to reconnect: "));
+	}
+
+	bool player_ready_for_new_round = true;
 
 	public void RegisterNewPlayer(PlayerManager player_m)
 	{
-		if(player_m.is_local_player)
+		if(player_m.is_local_player) {
 			player_manager = player_m;
-		else
+			player_manager.move = player_move;
+			player_manager.ready_for_new_round = player_ready_for_new_round;
+		} else {
 			opponent_manager = player_m;
+		}
 	}
 
 	void OnGUI()

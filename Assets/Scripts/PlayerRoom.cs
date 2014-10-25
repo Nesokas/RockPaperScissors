@@ -23,6 +23,9 @@ public class PlayerRoom : MonoBehaviour {
 	public void JoinRoom()
 	{
 		PhotonNetwork.JoinRoom(room_id, false);
+		GameObject game_manager = GameObject.FindGameObjectWithTag("GameManager");
+		APIManager api_manager = game_manager.GetComponent<APIManager>();
+		api_manager.last_room_connected = room_id;
 	}
 
 	public IEnumerator GetFacebookPicture(string facebookId)
